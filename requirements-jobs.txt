@@ -1,0 +1,7 @@
+# Segundo pip — SEM constraints. Pin do core para não subir o Airflow.
+# Validado em homologação: deltalake 1.6.2 + pyarrow 25.0.0
+# boto3: projetos que leem/escrevem direto no object store.
+apache-airflow==3.2.2
+deltalake==1.6.2
+pyarrow==25.0.0
+boto3>=1.34,<2

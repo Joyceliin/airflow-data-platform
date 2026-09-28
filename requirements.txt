@@ -1,0 +1,37 @@
+# =============================================================================
+# AIRFLOW 3.2.2 — COM constraints oficiais
+# União do que os projetos no worker realmente importam.
+# Overlay (deltalake/pyarrow/boto3) em requirements-jobs.txt
+#
+# Delta/medalhão   deltalake pyarrow pandas psycopg2
+# Fontes Oracle    + oracledb (thick: Instant Client)
+# Analítico        + numpy minio duckdb python-dotenv
+# Object store     boto3 PyYAML
+# =============================================================================
+
+apache-airflow[celery,statsd]==3.2.2
+
+apache-airflow-providers-fab>=2.0.0
+apache-airflow-providers-postgres>=6.0.0
+apache-airflow-providers-common-sql>=1.35.0
+apache-airflow-providers-smtp
+apache-airflow-providers-oracle
+apache-airflow-providers-amazon>=9.0.0
+apache-airflow-providers-http
+apache-airflow-providers-ssh>=4.0.0
+
+duckdb==1.2.0
+psycopg2-binary
+oracledb
+pandas
+numpy
+PyYAML
+openpyxl
+python-dotenv
+minio
+requests
+retrying
+pyOpenSSL
+cloudpickle
+unidecode
+filetype

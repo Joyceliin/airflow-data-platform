@@ -1,0 +1,316 @@
+x-airflow-common:
+  &airflow-common
+  image: airflow-platform:local
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+    POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    POSTGRES_USER: ${POSTGRES_USER:-airflow}
+    REDIS_HOST: ${REDIS_HOST:-redis}
+    REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: >-
+      bash -c 'printf "postgresql+psycopg2://%s:%s@%s/%s" "$$POSTGRES_USER" "$$(cat /run/secrets/postgres_password)" "$${POSTGRES_HOST:-postgres}" "$$POSTGRES_DB"'
+    AIRFLOW__CELERY__RESULT_BACKEND_CMD: >-
+      bash -c 'printf "db+postgresql://%s:%s@%s/%s" "$$POSTGRES_USER" "$$(cat /run/secrets/postgres_password)" "$${POSTGRES_HOST:-postgres}" "$$POSTGRES_DB"'
+    AIRFLOW__CELERY__BROKER_URL_CMD: >-
+      bash -c 'printf "redis://:%s@%s:6379/0" "$$(cat /run/secrets/redis_password)" "$${REDIS_HOST:-redis}"'
+    AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI_CMD: >-
+      bash -c 'printf "redis://:%s@%s:6379/0" "$$(cat /run/secrets/redis_password)" "$${REDIS_HOST:-redis}"'
+    AIRFLOW__CORE__FERNET_KEY_CMD: cat /run/secrets/airflow_fernet_key
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: 'False'
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-webserver:8080/execution/'
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth, airflow.api.auth.backend.session
+    AIRFLOW__API__WORKERS: '1'
+    AIRFLOW__API_AUTH__JWT_SECRET_CMD: cat /run/secrets/airflow_jwt_secret
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    PYTHONPATH: /opt/airflow/config:/opt/airflow/libs
+    AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    AIRFLOW__METRICS__STATSD_ON: "False"
+    AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"
+    AIRFLOW__METRICS__STATSD_PORT: "9125"
+    AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
+    AIRFLOW__METRICS__STATSD_PLUGIN_CLASS: 'airflow.providers.prometheus.metrics.prometheus_statsd_exporter.PrometheusStatsdExporter'
+    AIRFLOW__WEBSERVER__SECRET_KEY_CMD: cat /run/secrets/airflow_webserver_secret_key
+    AIRFLOW__API__SECRET_KEY_CMD: cat /run/secrets/airflow_api_secret_key
+    AIRFLOW__API__ENABLE_SWAGGER_UI: 'False'
+    AIRFLOW__WEBSERVER__ENABLE_SWAGGER_UI: 'False'
+    AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-http://localhost:8080}
+    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: ${AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX:-True}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_PROTO: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_PROTO:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_HOST: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_HOST:-1}
+    AIRFLOW__WEBSERVER__COOKIE_SECURE: ${AIRFLOW__WEBSERVER__COOKIE_SECURE:-True}
+    AIRFLOW__WEBSERVER__X_FRAME_ENABLED: 'False'
+    AIRFLOW__FAB__UPDATE_FAB_PERMS: ${AIRFLOW__FAB__UPDATE_FAB_PERMS:-True}
+    AIRFLOW__FAB__AUTH_RATE_LIMITED: 'True'
+    AIRFLOW__FAB__AUTH_RATE_LIMIT: '5 per 1 minute'
+    AIRFLOW_AUTH_RATE_LIMIT_PATHS: ${AIRFLOW_AUTH_RATE_LIMIT_PATHS:-/auth/token}
+    AIRFLOW_AUTH_RATE_LIMIT_MAX_REQUESTS: ${AIRFLOW_AUTH_RATE_LIMIT_MAX_REQUESTS:-5}
+    AIRFLOW_AUTH_RATE_LIMIT_WINDOW_SECONDS: ${AIRFLOW_AUTH_RATE_LIMIT_WINDOW_SECONDS:-60}
+    AIRFLOW_AUTH_LOCKOUT_MAX_FAILURES: ${AIRFLOW_AUTH_LOCKOUT_MAX_FAILURES:-5}
+    AIRFLOW_AUTH_LOCKOUT_SECONDS: ${AIRFLOW_AUTH_LOCKOUT_SECONDS:-900}
+    # Configurações de e-mail
+    AIRFLOW__SMTP__SMTP_HOST: ${AIRFLOW__SMTP__SMTP_HOST:-}
+    AIRFLOW__SMTP__SMTP_STARTTLS: 'true'
+    AIRFLOW__SMTP__SMTP_SSL: 'False'
+    AIRFLOW__SMTP__SMTP_USER: ${AIRFLOW__SMTP__SMTP_USER:-}
+    AIRFLOW__SMTP__SMTP_PASSWORD_CMD: cat /run/secrets/smtp_password
+    AIRFLOW__SMTP__SMTP_PORT: '587'
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: ${AIRFLOW__SMTP__SMTP_MAIL_FROM:-}
+    # CA object store (host gitignored; path via env do host)
+    DATAOPS_S3_CA_BUNDLE: ${DATAOPS_S3_CA_BUNDLE:-}
+
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/plugins:/opt/airflow/plugins
+    - ./airflow/libs:/opt/airflow/libs:ro
+    - ./airflow.cfg:/opt/airflow/config/airflow.cfg:ro
+    - ./sitecustomize.py:/opt/airflow/config/sitecustomize.py:ro
+    - ./webserver_config.py:/opt/airflow/webserver_config.py:ro
+    # CA object store: host gitignored; path via DATAOPS_S3_CA_BUNDLE no .env do host
+    - ${AIRFLOW_CERTS_DIR:-./.certs}:/opt/airflow/certs:ro
+  secrets:
+    - postgres_password
+    - redis_password
+    - airflow_fernet_key
+    - airflow_webserver_secret_key
+    - airflow_api_secret_key
+    - airflow_jwt_secret
+    - airflow_admin_password
+    - smtp_password
+  user: "${AIRFLOW_UID:-50000}:0"
+
+services:
+  airflow-proxy:
+    image: nginx:1.27-alpine
+    container_name: airflow-proxy
+    # F-002 = auth na UI/API (FAB + basic_auth), nao "fechar" a 8080.
+    # Padrao: Nginx do Compose na 8080 (dominio/LB de fora → esta porta).
+    # Opcional: AIRFLOW_PROXY_BIND=127.0.0.1:8080:8080 se firewall/LB exigir so loopback.
+    ports:
+      - "${AIRFLOW_PROXY_BIND:-8080:8080}"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      airflow-webserver:
+        condition: service_healthy
+    networks:
+      - net_airflow
+    restart: always
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: api-server
+    container_name: airflow-webserver
+    #user: "0:0"
+    expose:
+      - "8080"
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.10
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      #<<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    container_name: airflow-scheduler
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.11
+    #user: "0:0"
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$$(hostname)"']
+      #test: ["CMD", "curl", "--fail", "http://localhost:8974/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      #<<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-worker_1:
+    <<: *airflow-common
+    command: celery worker
+    container_name: airflow-worker_1
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.12
+    #user: "0:0"
+    healthcheck:
+      # yamllint disable rule:line-length
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      <<: *airflow-common-env
+      # Required to handle warm shutdown of the celery workers properly
+      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      #DUMB_INIT_SETSID: "0"
+    restart: always
+    depends_on:
+      #<<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    container_name: airflow-triggerer
+    #user: "0:0"
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      #<<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.13
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    container_name: airflow-dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$$HOSTNAME"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      #<<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.14
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        chmod -R 775 /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins
+        /entrypoint airflow db migrate
+        ADMIN_PASSWORD="$$(cat /run/secrets/airflow_admin_password)"
+        su airflow -s /bin/bash -c "export HOME=/home/airflow PATH=/home/airflow/.local/bin:/usr/local/bin:/usr/bin:/bin; airflow users create --username \"$${AIRFLOW_WWW_USER_USERNAME:-airflow-dev}\" --password \"$$ADMIN_PASSWORD\" --firstname Admin --lastname User --role Admin --email admin@example.com" || true
+        unset ADMIN_PASSWORD
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME:-airflow-dev}
+    user: "0:0"
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.15
+
+  postgres:
+    image: postgres:17
+    container_name: airflow-postgres
+    command:
+      - postgres
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - password_encryption=scram-sha-256
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    secrets:
+      - postgres_password
+    expose:
+      - "5432"
+    networks:
+      net_airflow:
+        ipv4_address: 172.28.1.20
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-airflow} -d ${POSTGRES_DB:-airflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: airflow-redis
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+    expose:
+      - "6379"
+    networks:
+      - net_airflow
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$(cat /run/secrets/redis_password)" ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+networks:
+  net_airflow:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.28.1.0/24"
+
+volumes:
+  postgres_data:
+    driver: local
+
+secrets:
+  postgres_password:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/postgres_password
+  redis_password:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/redis_password
+  airflow_fernet_key:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/airflow_fernet_key
+  airflow_webserver_secret_key:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/airflow_webserver_secret_key
+  airflow_api_secret_key:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/airflow_api_secret_key
+  airflow_jwt_secret:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/airflow_jwt_secret
+  airflow_admin_password:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/airflow_admin_password
+  smtp_password:
+    file: ${AIRFLOW_SECRETS_DIR:-./.env_secrets}/smtp_password
+

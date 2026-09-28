@@ -1,0 +1,124 @@
+# =============================================================================
+# .gitignore — Airflow Prod 3.0
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Variáveis de ambiente e segredos
+# -----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+.env_secrets/
+*.secret
+*.key
+
+# Certificados TLS no host (espelha .env_secrets — so certs.example/ versionado)
+.certs/
+
+# -----------------------------------------------------------------------------
+# Oracle Instant Client — ZIPs binários (baixar separadamente)
+# -----------------------------------------------------------------------------
+plugin/*.zip
+plugin/*.tar.gz
+plugin/*.tgz
+airflow-platform-local.tar.gz
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+airflow/libs/tests/previa/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# -----------------------------------------------------------------------------
+# Airflow — gerados em runtime
+# -----------------------------------------------------------------------------
+logs/
+airflow-webserver.pid
+standalone_admin_password.txt
+airflow.db
+airflow/logs/
+airflow/airflow-webserver.pid
+airflow/standalone_admin_password.txt
+airflow/airflow.db
+
+# -----------------------------------------------------------------------------
+# spark-jars — cluster Spark removido da stack
+# -----------------------------------------------------------------------------
+spark-jars/
+
+# -----------------------------------------------------------------------------
+# Docker — volumes e dados persistidos localmente
+# -----------------------------------------------------------------------------
+postgres-data/
+redis-data/
+docker-volumes/
+*.tar
+
+# -----------------------------------------------------------------------------
+# IDEs e editores
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Cobertura e testes
+# -----------------------------------------------------------------------------
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# -----------------------------------------------------------------------------
+# Jupyter
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+
+# -----------------------------------------------------------------------------
+# Logs e temporários
+# -----------------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+.cursorignore
+.cursorrules
+# Volume das DAGs: domínio via CI dos projetos; ops/ canônico versionado aqui.
+airflow/dags/**
+!airflow/dags/README.md
+!airflow/dags/ops/
+!airflow/dags/ops/**
+
+
+# Contexto de IDE/IA (local; nao versionar)
+.cursor/
+.cursorrules
+
